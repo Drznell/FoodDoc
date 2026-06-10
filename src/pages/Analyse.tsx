@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { analyseMeal } from '../lib/gemini'
-import type { NutritionResult } from '../types'
+import type { NutritionResult } from '../types/index'
 import { Camera, Send, Loader2 } from 'lucide-react'
 
 export default function Analyse() {

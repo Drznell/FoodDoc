@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { MealLog } from '../types'
+import type { MealLog } from '../types/index'
 
 export default function Dashboard() {
   const [meals, setMeals] = useState<MealLog[]>([])

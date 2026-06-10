@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Profile } from '../types'
+import type { Profile } from '../types/index'
 
 const goalLabels: Record<string, string> = {
   lose_weight: '⚖️ Lose Weight',
