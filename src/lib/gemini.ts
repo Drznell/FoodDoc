@@ -13,8 +13,13 @@ const LANGUAGE_INSTRUCTIONS: Record<Language, string> = {
 export async function analyseMeal(
   description: string,
   language: Language,
-  imageBase64?: string
+  imageBase64?: string,
+  imageMimeType = 'image/jpeg'
 ): Promise<NutritionResult> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('AI analysis is not configured yet. Add VITE_GEMINI_API_KEY to your environment variables and redeploy the app.')
+  }
+
   const langInstruction = LANGUAGE_INSTRUCTIONS[language]
 
   const prompt = `You are FoodDoc, an expert Nigerian and African food nutritionist AI. Analyse this meal and return ONLY a valid JSON object. Do not include markdown, comments, or extra text.
@@ -74,7 +79,7 @@ Return this exact JSON structure:
   if (imageBase64) {
     parts.unshift({
       inline_data: {
-        mime_type: 'image/jpeg',
+        mime_type: imageMimeType,
         data: imageBase64,
       },
     })
@@ -89,16 +94,28 @@ Return this exact JSON structure:
     }
   )
 
+  const data = await response.json()
   if (!response.ok) {
-    throw new Error('FoodDoc analysis request failed')
+    const message = data?.error?.message || 'FoodDoc analysis request failed'
+    throw new Error(`AI analysis failed: ${message}`)
   }
 
-  const data = await response.json()
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) {
     throw new Error('FoodDoc did not return an analysis')
   }
 
   const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean) as NutritionResult
+  const jsonStart = clean.indexOf('{')
+  const jsonEnd = clean.lastIndexOf('}')
+
+  if (jsonStart === -1 || jsonEnd === -1) {
+    throw new Error('FoodDoc returned an unreadable analysis. Please try again.')
+  }
+
+  try {
+    return JSON.parse(clean.slice(jsonStart, jsonEnd + 1)) as NutritionResult
+  } catch {
+    throw new Error('FoodDoc returned incomplete nutrition data. Please try again.')
+  }
 }
