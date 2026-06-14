@@ -81,6 +81,7 @@ export default function Analyse() {
   const [description, setDescription] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imageMimeType, setImageMimeType] = useState('image/jpeg')
   const [result, setResult] = useState<NutritionResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -110,6 +111,7 @@ export default function Analyse() {
       const res = reader.result as string
       setImage(res)
       setImageBase64(res.split(',')[1])
+      setImageMimeType(file.type || 'image/jpeg')
     }
     reader.readAsDataURL(file)
   }
@@ -167,10 +169,10 @@ export default function Analyse() {
     setResult(null)
     setSaved(false)
     try {
-      const data = await analyseMeal(description, language, imageBase64 || undefined)
+      const data = await analyseMeal(description, language, imageBase64 || undefined, imageMimeType)
       setResult(data)
-    } catch {
-      setError('FoodDoc could not analyse that meal yet. Please try again with a clearer photo or more detail.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'FoodDoc could not analyse that meal yet. Please try again.')
     }
     setLoading(false)
   }
@@ -205,6 +207,7 @@ export default function Analyse() {
     setDescription('')
     setImage(null)
     setImageBase64(null)
+    setImageMimeType('image/jpeg')
     setResult(null)
     setError('')
     setSaved(false)
