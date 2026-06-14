@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { analyseMeal } from '../lib/gemini'
 import type { NutritionResult, Language } from '../types/index'
-import { Camera, Send, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
+import { Camera, Send, Loader2, Mic, MicOff, Volume2, X } from 'lucide-react'
 
 const LANGUAGES: { value: Language; flag: string; label: string }[] = [
   { value: 'english', flag: '🇳🇬', label: 'English' },
@@ -13,11 +13,7 @@ const LANGUAGES: { value: Language; flag: string; label: string }[] = [
 ]
 
 const LANG_VOICES: Record<Language, string> = {
-  english: 'en-NG',
-  pidgin: 'en-NG',
-  yoruba: 'yo',
-  hausa: 'ha',
-  igbo: 'ig',
+  english: 'en-NG', pidgin: 'en-NG', yoruba: 'yo', hausa: 'ha', igbo: 'ig',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,16 +59,12 @@ export default function Analyse() {
   function startListening() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) {
-      setError('Voice input not supported in this browser. Try Chrome.')
-      return
-    }
+    if (!SR) { setError('Voice input not supported. Try Chrome.'); return }
     const recognition = new SR()
     recognitionRef.current = recognition
     recognition.lang = 'en-NG'
     recognition.continuous = false
     recognition.interimResults = false
-
     recognition.onresult = (event: { results: { 0: { 0: { transcript: string } } } }) => {
       const transcript = event.results[0][0].transcript
       setDescription(prev => prev ? prev + ' ' + transcript : transcript)
@@ -80,15 +72,11 @@ export default function Analyse() {
     }
     recognition.onerror = () => setListening(false)
     recognition.onend = () => setListening(false)
-
     recognition.start()
     setListening(true)
   }
 
-  function stopListening() {
-    recognitionRef.current?.stop()
-    setListening(false)
-  }
+  function stopListening() { recognitionRef.current?.stop(); setListening(false) }
 
   function speakAdvice(text: string) {
     if (!window.speechSynthesis) return
@@ -96,8 +84,7 @@ export default function Analyse() {
     const utterance = new SpeechSynthesisUtterance(text)
     const voices = window.speechSynthesis.getVoices()
     const langCode = LANG_VOICES[language]
-    const match = voices.find(v => v.lang.startsWith(langCode)) ||
-                  voices.find(v => v.lang.startsWith('en'))
+    const match = voices.find(v => v.lang.startsWith(langCode)) || voices.find(v => v.lang.startsWith('en'))
     if (match) utterance.voice = match
     utterance.rate = 0.9
     utterance.onstart = () => setSpeaking(true)
@@ -107,20 +94,12 @@ export default function Analyse() {
   }
 
   async function handleAnalyse() {
-    if (!description && !imageBase64) {
-      setError('Please describe your meal or upload a photo.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    setResult(null)
-    setSaved(false)
+    if (!description && !imageBase64) { setError('Please describe your meal or upload a photo.'); return }
+    setLoading(true); setError(''); setResult(null); setSaved(false)
     try {
       const data = await analyseMeal(description, language, imageBase64 || undefined)
       setResult(data)
-    } catch {
-      setError('Something went wrong. Please try again.')
-    }
+    } catch { setError('Something went wrong. Please try again.') }
     setLoading(false)
   }
 
@@ -130,54 +109,40 @@ export default function Analyse() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from('meal_logs').insert({
-      user_id: user.id,
-      meal_name: result.meal_name,
-      meal_description: description,
-      calories: result.calories,
-      protein: result.protein,
-      carbs: result.carbs,
-      fat: result.fat,
-      iron: result.iron,
-      folate: result.folate,
-      zinc: result.zinc,
-      ai_advice: result.ai_advice,
-      language: result.language,
+      user_id: user.id, meal_name: result.meal_name, meal_description: description,
+      calories: result.calories, protein: result.protein, carbs: result.carbs,
+      fat: result.fat, iron: result.iron, folate: result.folate, zinc: result.zinc,
+      ai_advice: result.ai_advice, language: result.language,
     })
-    setSaved(true)
-    setSaving(false)
+    setSaved(true); setSaving(false)
   }
 
   function handleReset() {
-    setDescription('')
-    setImage(null)
-    setImageBase64(null)
-    setResult(null)
-    setError('')
-    setSaved(false)
+    setDescription(''); setImage(null); setImageBase64(null)
+    setResult(null); setError(''); setSaved(false)
     window.speechSynthesis?.cancel()
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-primary text-white px-6 pt-10 pb-8">
-        <h1 className="text-2xl font-bold">Analyse a Meal</h1>
-        <p className="text-green-100 text-sm mt-1">Snap or describe your food — FoodDoc go tell you everything</p>
-      </div>
+    <div className="ambient-bg min-h-screen pb-28">
+      <div className="content-layer max-w-md mx-auto px-5 pt-12 space-y-4">
 
-      <div className="max-w-md mx-auto px-6 -mt-4 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Analyse Meal</h1>
+          <p className="text-gray-400 text-sm mt-1">Snap or describe — FoodDoc go sort you out</p>
+        </div>
 
-        {/* Language selector */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Response Language</p>
+        <div className="glass rounded-2xl p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Response Language</p>
           <div className="flex gap-2 flex-wrap">
             {LANGUAGES.map(lang => (
               <button
                 key={lang.value}
                 onClick={() => setLanguage(lang.value)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200 ${
                   language === lang.value
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary'
+                    ? 'bg-primary text-white border-primary shadow-glow-sm'
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:border-primary/50'
                 }`}
               >
                 <span>{lang.flag}</span>
@@ -187,134 +152,130 @@ export default function Analyse() {
           </div>
         </div>
 
-        {/* Input card */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-
-          {/* Image upload */}
+        <div className="glass rounded-2xl p-5 space-y-4">
           <div
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-primary transition-colors"
+            className="border border-dashed border-white/10 rounded-xl p-4 text-center cursor-pointer hover:border-primary/40 transition-colors relative"
           >
             {image ? (
-              <img src={image} alt="meal" className="w-full h-44 object-cover rounded-lg" />
+              <div className="relative">
+                <img src={image} alt="meal" className="w-full h-44 object-cover rounded-lg" />
+                <button
+                  onClick={e => { e.stopPropagation(); setImage(null); setImageBase64(null) }}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center"
+                >
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
             ) : (
-              <div className="py-4">
-                <Camera className="mx-auto text-gray-300 mb-2" size={32} />
-                <p className="text-gray-400 text-sm">Tap to upload a photo of your meal</p>
-                <p className="text-gray-300 text-xs mt-1">Optional — you can also just describe it</p>
+              <div className="py-5">
+                <Camera className="mx-auto text-gray-600 mb-2" size={28} />
+                <p className="text-gray-500 text-sm">Tap to upload a photo</p>
+                <p className="text-gray-700 text-xs mt-1">Optional — describe below if no photo</p>
               </div>
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
 
-          {/* Text + voice input */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Describe your meal</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-300">Describe your meal</label>
               <button
                 onClick={listening ? stopListening : startListening}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   listening
-                    ? 'bg-red-500 text-white animate-pulse'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse'
+                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-primary/40'
                 }`}
               >
-                {listening ? <MicOff size={14} /> : <Mic size={14} />}
+                {listening ? <MicOff size={12} /> : <Mic size={12} />}
                 {listening ? 'Listening...' : 'Voice'}
               </button>
             </div>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="e.g. A big plate of jollof rice with fried chicken and fried plantain..."
+              placeholder="e.g. A plate of eba and egusi soup with stockfish and periwinkle..."
               rows={3}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary resize-none"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 resize-none"
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
+          {error && (
+            <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg">{error}</p>
+          )}
 
           <button
             onClick={handleAnalyse}
             disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-60"
+            className="w-full bg-primary text-white py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-glow"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             {loading ? 'Analysing your food...' : 'Analyse Meal'}
           </button>
         </div>
 
-        {/* Results card */}
         {result && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-            <h2 className="text-lg font-bold text-gray-800">{result.meal_name}</h2>
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <h2 className="text-lg font-bold text-white">{result.meal_name}</h2>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-orange-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-orange-500">{result.calories}</p>
-                <p className="text-xs text-gray-500 mt-1">Calories (kcal)</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-blue-500">{result.protein}g</p>
-                <p className="text-xs text-gray-500 mt-1">Protein</p>
-              </div>
-              <div className="bg-yellow-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-500">{result.carbs}g</p>
-                <p className="text-xs text-gray-500 mt-1">Carbohydrates</p>
-              </div>
-              <div className="bg-red-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-red-400">{result.fat}g</p>
-                <p className="text-xs text-gray-500 mt-1">Fat</p>
-              </div>
+              {[
+                { label: 'Calories', value: result.calories, unit: 'kcal', color: 'text-orange-400', bg: 'bg-orange-500/10' },
+                { label: 'Protein', value: result.protein, unit: 'g', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                { label: 'Carbs', value: result.carbs, unit: 'g', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+                { label: 'Fat', value: result.fat, unit: 'g', color: 'text-red-400', bg: 'bg-red-500/10' },
+              ].map(item => (
+                <div key={item.label} className={`${item.bg} rounded-xl p-3 text-center border border-white/5`}>
+                  <p className={`text-2xl font-bold ${item.color}`}>{item.value}{item.unit !== 'kcal' ? item.unit : ''}</p>
+                  <p className="text-xs text-gray-500 mt-1">{item.label}{item.unit === 'kcal' ? ' (kcal)' : ''}</p>
+                </div>
+              ))}
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Micronutrients</p>
-              <div className="space-y-2">
-                {[
-                  { label: 'Iron', value: `${result.iron} mg` },
-                  { label: 'Folate', value: `${result.folate} mcg` },
-                  { label: 'Zinc', value: `${result.zinc} mg` },
-                ].map(item => (
-                  <div key={item.label} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{item.label}</span>
-                    <span className="font-medium text-gray-800">{item.value}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Micronutrients</p>
+              {[
+                { label: 'Iron', value: `${result.iron} mg` },
+                { label: 'Folate', value: `${result.folate} mcg` },
+                { label: 'Zinc', value: `${result.zinc} mg` },
+              ].map(item => (
+                <div key={item.label} className="flex justify-between text-sm">
+                  <span className="text-gray-500">{item.label}</span>
+                  <span className="font-medium text-white">{item.value}</span>
+                </div>
+              ))}
             </div>
 
-            <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+            <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-primary uppercase">FoodDoc Says 🧠</p>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">FoodDoc Says 🧠</p>
                 <button
                   onClick={() => speaking ? window.speechSynthesis.cancel() : speakAdvice(result.ai_advice)}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    speaking
-                      ? 'bg-primary text-white'
-                      : 'bg-white border border-green-200 text-green-700 hover:bg-green-100'
+                    speaking ? 'bg-primary text-white' : 'bg-white/5 border border-primary/30 text-primary hover:bg-primary/10'
                   }`}
                 >
-                  <Volume2 size={12} />
+                  <Volume2 size={11} />
                   {speaking ? 'Stop' : 'Listen'}
                 </button>
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{result.ai_advice}</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{result.ai_advice}</p>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={handleSave}
                 disabled={saving || saved}
-                className="flex-1 bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
+                className="flex-1 bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-glow-sm"
               >
-                {saved ? '✓ Saved to Log' : saving ? 'Saving...' : 'Save to Log'}
+                {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save to Log'}
               </button>
               <button
                 onClick={handleReset}
-                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
+                className="flex-1 bg-white/5 border border-white/10 text-gray-300 py-3 rounded-xl font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                Analyse Another
+                New Meal
               </button>
             </div>
           </div>
