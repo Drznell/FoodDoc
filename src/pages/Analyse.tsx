@@ -1,23 +1,81 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { analyseMeal } from '../lib/gemini'
-import type { NutritionResult, Language } from '../types/index'
-import { Camera, Send, Loader2, Mic, MicOff, Volume2, X } from 'lucide-react'
+import type { Language, NutritionResult } from '../types/index'
+import {
+  AlertTriangle,
+  Camera,
+  Droplets,
+  Leaf,
+  Loader2,
+  Mic,
+  MicOff,
+  Send,
+  ShieldCheck,
+  Utensils,
+  Volume2,
+  Wallet,
+  X,
+} from 'lucide-react'
 
-const LANGUAGES: { value: Language; flag: string; label: string }[] = [
-  { value: 'english', flag: '🇳🇬', label: 'English' },
-  { value: 'pidgin', flag: '🗣️', label: 'Pidgin' },
-  { value: 'yoruba', flag: '🌿', label: 'Yoruba' },
-  { value: 'hausa', flag: '☀️', label: 'Hausa' },
-  { value: 'igbo', flag: '🦅', label: 'Igbo' },
+const LANGUAGES: { value: Language; code: string; label: string; native: string }[] = [
+  { value: 'english', code: 'EN', label: 'English', native: 'Nigerian English' },
+  { value: 'pidgin', code: 'PG', label: 'Pidgin', native: 'Naija Pidgin' },
+  { value: 'yoruba', code: 'YO', label: 'Yoruba', native: 'Yoruba' },
+  { value: 'hausa', code: 'HA', label: 'Hausa', native: 'Hausa' },
+  { value: 'igbo', code: 'IG', label: 'Igbo', native: 'Igbo' },
 ]
 
 const LANG_VOICES: Record<Language, string> = {
-  english: 'en-NG', pidgin: 'en-NG', yoruba: 'yo', hausa: 'ha', igbo: 'ig',
+  english: 'en-NG',
+  pidgin: 'en-NG',
+  yoruba: 'yo',
+  hausa: 'ha',
+  igbo: 'ig',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySpeechRecognition = any
+
+function MetricCard({ label, value, unit, tone }: {
+  label: string
+  value: number
+  unit: string
+  tone: string
+}) {
+  return (
+    <div className="bg-white/5 rounded-xl p-3 border border-white/5 min-h-[88px]">
+      <p className={`text-2xl font-bold ${tone}`}>{Math.round(value * 10) / 10}</p>
+      <p className="text-xs text-gray-500 mt-1">{label}</p>
+      <p className="text-[11px] text-gray-600">{unit}</p>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between gap-3 text-sm py-2 border-b border-white/5 last:border-0">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-medium text-white text-right">{value}</span>
+    </div>
+  )
+}
+
+function InsightBlock({ icon: Icon, title, children }: {
+  icon: React.ElementType
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={14} className="text-primary" />
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{title}</p>
+      </div>
+      <div className="text-sm text-gray-300 leading-relaxed">{children}</div>
+    </div>
+  )
+}
 
 export default function Analyse() {
   const [description, setDescription] = useState('')
@@ -59,15 +117,18 @@ export default function Analyse() {
   function startListening() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) { setError('Voice input not supported. Try Chrome.'); return }
+    if (!SR) {
+      setError('Voice input is not supported in this browser. Try Chrome.')
+      return
+    }
     const recognition = new SR()
     recognitionRef.current = recognition
-    recognition.lang = 'en-NG'
+    recognition.lang = LANG_VOICES[language]
     recognition.continuous = false
     recognition.interimResults = false
     recognition.onresult = (event: { results: { 0: { 0: { transcript: string } } } }) => {
       const transcript = event.results[0][0].transcript
-      setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+      setDescription(prev => prev ? `${prev} ${transcript}` : transcript)
       setListening(false)
     }
     recognition.onerror = () => setListening(false)
@@ -76,7 +137,10 @@ export default function Analyse() {
     setListening(true)
   }
 
-  function stopListening() { recognitionRef.current?.stop(); setListening(false) }
+  function stopListening() {
+    recognitionRef.current?.stop()
+    setListening(false)
+  }
 
   function speakAdvice(text: string) {
     if (!window.speechSynthesis) return
@@ -94,12 +158,20 @@ export default function Analyse() {
   }
 
   async function handleAnalyse() {
-    if (!description && !imageBase64) { setError('Please describe your meal or upload a photo.'); return }
-    setLoading(true); setError(''); setResult(null); setSaved(false)
+    if (!description && !imageBase64) {
+      setError('Please describe your meal or upload a photo.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setResult(null)
+    setSaved(false)
     try {
       const data = await analyseMeal(description, language, imageBase64 || undefined)
       setResult(data)
-    } catch { setError('Something went wrong. Please try again.') }
+    } catch {
+      setError('FoodDoc could not analyse that meal yet. Please try again with a clearer photo or more detail.')
+    }
     setLoading(false)
   }
 
@@ -107,46 +179,66 @@ export default function Analyse() {
     if (!result) return
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setSaving(false)
+      return
+    }
     await supabase.from('meal_logs').insert({
-      user_id: user.id, meal_name: result.meal_name, meal_description: description,
-      calories: result.calories, protein: result.protein, carbs: result.carbs,
-      fat: result.fat, iron: result.iron, folate: result.folate, zinc: result.zinc,
-      ai_advice: result.ai_advice, language: result.language,
+      user_id: user.id,
+      meal_name: result.meal_name,
+      meal_description: description,
+      calories: result.calories,
+      protein: result.protein,
+      carbs: result.carbs,
+      fat: result.fat,
+      iron: result.iron,
+      folate: result.folate,
+      zinc: result.zinc,
+      ai_advice: result.ai_advice,
+      language: result.language,
     })
-    setSaved(true); setSaving(false)
+    setSaved(true)
+    setSaving(false)
   }
 
   function handleReset() {
-    setDescription(''); setImage(null); setImageBase64(null)
-    setResult(null); setError(''); setSaved(false)
+    setDescription('')
+    setImage(null)
+    setImageBase64(null)
+    setResult(null)
+    setError('')
+    setSaved(false)
     window.speechSynthesis?.cancel()
   }
 
   return (
     <div className="ambient-bg min-h-screen pb-28">
       <div className="content-layer max-w-md mx-auto px-5 pt-12 space-y-4">
-
         <div>
           <h1 className="text-2xl font-bold text-white">Analyse Meal</h1>
-          <p className="text-gray-400 text-sm mt-1">Snap or describe — FoodDoc go sort you out</p>
+          <p className="text-gray-400 text-sm mt-1">Snap or describe a Nigerian meal and get practical guidance.</p>
         </div>
 
         <div className="glass rounded-2xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Response Language</p>
-          <div className="flex gap-2 flex-wrap">
+          <div className="grid grid-cols-2 gap-2">
             {LANGUAGES.map(lang => (
               <button
                 key={lang.value}
                 onClick={() => setLanguage(lang.value)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200 ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-left border transition-all duration-200 ${
                   language === lang.value
                     ? 'bg-primary text-white border-primary shadow-glow-sm'
                     : 'bg-white/5 text-gray-400 border-white/10 hover:border-primary/50'
                 }`}
               >
-                <span>{lang.flag}</span>
-                <span>{lang.label}</span>
+                <span className="w-7 h-7 rounded-lg bg-black/20 flex items-center justify-center text-[11px] font-bold">
+                  {lang.code}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold">{lang.label}</span>
+                  <span className="block text-[11px] opacity-70 truncate">{lang.native}</span>
+                </span>
               </button>
             ))}
           </div>
@@ -162,16 +254,17 @@ export default function Analyse() {
                 <img src={image} alt="meal" className="w-full h-44 object-cover rounded-lg" />
                 <button
                   onClick={e => { e.stopPropagation(); setImage(null); setImageBase64(null) }}
-                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center"
+                  className="absolute top-2 right-2 w-7 h-7 bg-black/70 rounded-full flex items-center justify-center"
+                  aria-label="Remove photo"
                 >
-                  <X size={12} className="text-white" />
+                  <X size={14} className="text-white" />
                 </button>
               </div>
             ) : (
               <div className="py-5">
                 <Camera className="mx-auto text-gray-600 mb-2" size={28} />
-                <p className="text-gray-500 text-sm">Tap to upload a photo</p>
-                <p className="text-gray-700 text-xs mt-1">Optional — describe below if no photo</p>
+                <p className="text-gray-500 text-sm">Tap to upload a food photo</p>
+                <p className="text-gray-700 text-xs mt-1">Works best with the full plate visible</p>
               </div>
             )}
           </div>
@@ -189,13 +282,13 @@ export default function Analyse() {
                 }`}
               >
                 {listening ? <MicOff size={12} /> : <Mic size={12} />}
-                {listening ? 'Listening...' : 'Voice'}
+                {listening ? 'Listening' : 'Voice'}
               </button>
             </div>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="e.g. A plate of eba and egusi soup with stockfish and periwinkle..."
+              placeholder="Example: A plate of eba and egusi soup with stockfish and beef."
               rows={3}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 resize-none"
             />
@@ -217,39 +310,90 @@ export default function Analyse() {
 
         {result && (
           <div className="glass rounded-2xl p-5 space-y-4">
-            <h2 className="text-lg font-bold text-white">{result.meal_name}</h2>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-white">{result.meal_name}</h2>
+                <p className="text-xs text-gray-500 mt-1">{result.region} - {result.portion_estimate}</p>
+              </div>
+              <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex flex-col items-center justify-center shrink-0">
+                <span className="text-xl font-bold text-primary">{result.nutrition_score}</span>
+                <span className="text-[10px] text-gray-500">score</span>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Calories', value: result.calories, unit: 'kcal', color: 'text-orange-400', bg: 'bg-orange-500/10' },
-                { label: 'Protein', value: result.protein, unit: 'g', color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                { label: 'Carbs', value: result.carbs, unit: 'g', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-                { label: 'Fat', value: result.fat, unit: 'g', color: 'text-red-400', bg: 'bg-red-500/10' },
-              ].map(item => (
-                <div key={item.label} className={`${item.bg} rounded-xl p-3 text-center border border-white/5`}>
-                  <p className={`text-2xl font-bold ${item.color}`}>{item.value}{item.unit !== 'kcal' ? item.unit : ''}</p>
-                  <p className="text-xs text-gray-500 mt-1">{item.label}{item.unit === 'kcal' ? ' (kcal)' : ''}</p>
-                </div>
-              ))}
+              <MetricCard label="Calories" value={result.calories} unit="kcal" tone="text-orange-400" />
+              <MetricCard label="Protein" value={result.protein} unit="grams" tone="text-blue-400" />
+              <MetricCard label="Carbs" value={result.carbs} unit="grams" tone="text-yellow-400" />
+              <MetricCard label="Fat" value={result.fat} unit="grams" tone="text-red-400" />
             </div>
 
-            <div className="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Micronutrients</p>
-              {[
-                { label: 'Iron', value: `${result.iron} mg` },
-                { label: 'Folate', value: `${result.folate} mcg` },
-                { label: 'Zinc', value: `${result.zinc} mg` },
-              ].map(item => (
-                <div key={item.label} className="flex justify-between text-sm">
-                  <span className="text-gray-500">{item.label}</span>
-                  <span className="font-medium text-white">{item.value}</span>
-                </div>
-              ))}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Micronutrients</p>
+              <InfoRow label="Iron" value={`${result.iron} mg`} />
+              <InfoRow label="Folate" value={`${result.folate} mcg`} />
+              <InfoRow label="Zinc" value={`${result.zinc} mg`} />
+              <InfoRow label="Vitamin A" value={`${result.vitamin_a} mcg`} />
+              <InfoRow label="Vitamin C" value={`${result.vitamin_c} mg`} />
+              <InfoRow label="Calcium" value={`${result.calcium} mg`} />
             </div>
+
+            <InsightBlock icon={Utensils} title="Food intelligence">
+              <p>{result.quality_assessment}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {result.local_names.map(name => (
+                  <span key={name} className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs">{name}</span>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-3">Ingredients: {result.ingredients.join(', ')}</p>
+              <p className="text-xs text-gray-500 mt-1">Cooking: {result.cooking_method}</p>
+            </InsightBlock>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <p className="text-xs text-gray-500">Sugar</p>
+                <p className="text-lg font-bold text-white">{result.sugar}g</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <p className="text-xs text-gray-500">Sodium</p>
+                <p className="text-lg font-bold text-white">{result.sodium}mg</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <p className="text-xs text-gray-500">Fiber</p>
+                <p className="text-lg font-bold text-white">{result.fiber}g</p>
+              </div>
+            </div>
+
+            <InsightBlock icon={ShieldCheck} title="Health signals">
+              <p>{result.protein_adequacy}</p>
+              <p className="mt-2">{result.nutrient_gap}</p>
+              {result.processed_food_warning !== 'None' && (
+                <p className="mt-2 text-amber-300 flex gap-2">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>{result.processed_food_warning}</span>
+                </p>
+              )}
+            </InsightBlock>
+
+            <InsightBlock icon={Leaf} title="Smart swaps">
+              <ul className="space-y-2">
+                {result.healthy_swaps.map(swap => <li key={swap}>{swap}</li>)}
+              </ul>
+            </InsightBlock>
+
+            <InsightBlock icon={Droplets} title="Portion and hydration">
+              <p>{result.portion_recommendation}</p>
+              <p className="mt-2">{result.hydration_tip}</p>
+            </InsightBlock>
+
+            <InsightBlock icon={Wallet} title="Affordable next step">
+              <p>{result.budget_tip}</p>
+              <p className="mt-2">{result.meal_suggestion}</p>
+            </InsightBlock>
 
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wider">FoodDoc Says 🧠</p>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">FoodDoc says</p>
                 <button
                   onClick={() => speaking ? window.speechSynthesis.cancel() : speakAdvice(result.ai_advice)}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
@@ -269,7 +413,7 @@ export default function Analyse() {
                 disabled={saving || saved}
                 className="flex-1 bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-glow-sm"
               >
-                {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save to Log'}
+                {saved ? 'Saved' : saving ? 'Saving...' : 'Save to Log'}
               </button>
               <button
                 onClick={handleReset}
