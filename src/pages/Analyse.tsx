@@ -20,12 +20,8 @@ const LANG_VOICES: Record<Language, string> = {
   igbo: 'ig',
 }
 
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySpeechRecognition = any
 
 export default function Analyse() {
   const [description, setDescription] = useState('')
@@ -40,7 +36,7 @@ export default function Analyse() {
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<AnySpeechRecognition>(null)
 
   useEffect(() => {
     async function loadLanguage() {
@@ -57,17 +53,18 @@ export default function Analyse() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = () => {
-      const result = reader.result as string
-      setImage(result)
-      setImageBase64(result.split(',')[1])
+      const res = reader.result as string
+      setImage(res)
+      setImageBase64(res.split(',')[1])
     }
     reader.readAsDataURL(file)
   }
 
   function startListening() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) {
-      setError('Voice input is not supported in your browser. Try Chrome.')
+      setError('Voice input not supported in this browser. Try Chrome.')
       return
     }
     const recognition = new SR()
@@ -76,7 +73,7 @@ export default function Analyse() {
     recognition.continuous = false
     recognition.interimResults = false
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: { results: { 0: { 0: { transcript: string } } } }) => {
       const transcript = event.results[0][0].transcript
       setDescription(prev => prev ? prev + ' ' + transcript : transcript)
       setListening(false)
@@ -252,7 +249,6 @@ export default function Analyse() {
           <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
             <h2 className="text-lg font-bold text-gray-800">{result.meal_name}</h2>
 
-            {/* Macros */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-orange-50 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-orange-500">{result.calories}</p>
@@ -272,7 +268,6 @@ export default function Analyse() {
               </div>
             </div>
 
-            {/* Micros */}
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Micronutrients</p>
               <div className="space-y-2">
@@ -289,7 +284,6 @@ export default function Analyse() {
               </div>
             </div>
 
-            {/* AI Advice with voice playback */}
             <div className="bg-green-50 border border-green-100 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-primary uppercase">FoodDoc Says 🧠</p>
@@ -308,7 +302,6 @@ export default function Analyse() {
               <p className="text-sm text-gray-700 leading-relaxed">{result.ai_advice}</p>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-3">
               <button
                 onClick={handleSave}
