@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Profile } from '../types/index'
+import type { Profile, Language } from '../types/index'
 
 const goalLabels: Record<string, string> = {
   lose_weight: '⚖️ Lose Weight',
@@ -8,6 +8,14 @@ const goalLabels: Record<string, string> = {
   eat_healthy: '🥗 Eat Healthy',
   manage_condition: '🏥 Manage a Condition',
 }
+
+const LANGUAGES: { value: Language; flag: string; label: string; native: string }[] = [
+  { value: 'english', flag: '🇳🇬', label: 'English', native: 'English' },
+  { value: 'pidgin', flag: '🗣️', label: 'Pidgin', native: 'Naija Pidgin' },
+  { value: 'yoruba', flag: '🌿', label: 'Yoruba', native: 'Yorùbá' },
+  { value: 'hausa', flag: '☀️', label: 'Hausa', native: 'Hausa' },
+  { value: 'igbo', flag: '🦅', label: 'Igbo', native: 'Ìgbò' },
+]
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Partial<Profile>>({})
@@ -54,7 +62,40 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-md mx-auto px-6 -mt-4 space-y-4">
+
+        {/* Language preference */}
+        <div className="bg-white rounded-2xl shadow-sm p-5">
+          <p className="text-sm font-semibold text-gray-700 mb-1">Preferred Language</p>
+          <p className="text-xs text-gray-400 mb-3">FoodDoc will always reply in this language</p>
+          <div className="space-y-2">
+            {LANGUAGES.map(lang => (
+              <button
+                key={lang.value}
+                onClick={() => setProfile({ ...profile, preferred_language: lang.value })}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                  profile.preferred_language === lang.value
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-primary'
+                }`}
+              >
+                <span className="text-xl">{lang.flag}</span>
+                <div>
+                  <p className="text-sm font-medium">{lang.label}</p>
+                  <p className={`text-xs ${profile.preferred_language === lang.value ? 'text-green-100' : 'text-gray-400'}`}>
+                    {lang.native}
+                  </p>
+                </div>
+                {profile.preferred_language === lang.value && (
+                  <span className="ml-auto text-white text-lg">✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Personal details */}
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
+          <p className="text-sm font-semibold text-gray-700">Personal Details</p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -98,7 +139,7 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">My Goal</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">My Health Goal</label>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(goalLabels).map(([value, label]) => (
                 <button
@@ -121,7 +162,7 @@ export default function ProfilePage() {
             disabled={saving}
             className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary-dark transition-colors disabled:opacity-60"
           >
-            {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Profile'}
+            {saved ? '✓ Profile Saved!' : saving ? 'Saving...' : 'Save Profile'}
           </button>
         </div>
 
