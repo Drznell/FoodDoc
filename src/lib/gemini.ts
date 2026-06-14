@@ -4,10 +4,10 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 const LANGUAGE_INSTRUCTIONS: Record<Language, string> = {
   english: 'Respond in clear, friendly Nigerian English.',
-  pidgin: 'Respond in Nigerian Pidgin English. Use expressions like "e don ready", "wetin dey inside", "this food sweet well well", "your body go thank you" etc. Keep it natural and relatable.',
-  yoruba: 'Respond in Yoruba language. Use proper Yoruba tones and phrases about food and health like "ounjẹ yi dara", "ara rẹ yio dara si". Mix naturally with a little English for nutrition terms if needed.',
-  hausa: 'Respond in Hausa language. Use warm, friendly Hausa expressions about food and health. Mix naturally with a little English for nutrition terms if needed.',
-  igbo: 'Respond in Igbo language. Use natural Igbo expressions about food and health like "nri a dị mma", "ahụ gị ga-adị mma". Mix naturally with a little English for nutrition terms if needed.',
+  pidgin: 'Respond in Nigerian Pidgin English. Keep it natural, practical, and relatable.',
+  yoruba: 'Respond in Yoruba. Mix naturally with a little English for nutrition terms if needed.',
+  hausa: 'Respond in Hausa. Mix naturally with a little English for nutrition terms if needed.',
+  igbo: 'Respond in Igbo. Mix naturally with a little English for nutrition terms if needed.',
 }
 
 export async function analyseMeal(
@@ -17,26 +17,55 @@ export async function analyseMeal(
 ): Promise<NutritionResult> {
   const langInstruction = LANGUAGE_INSTRUCTIONS[language]
 
-  const prompt = `You are FoodDoc, an expert Nigerian and African food nutritionist AI. Analyse this meal and return ONLY a JSON object — no markdown, no explanation, just raw JSON.
+  const prompt = `You are FoodDoc, an expert Nigerian and African food nutritionist AI. Analyse this meal and return ONLY a valid JSON object. Do not include markdown, comments, or extra text.
 
-Meal: ${description}
+Meal: ${description || 'Analyse the uploaded meal photo.'}
 
 IMPORTANT INSTRUCTIONS:
-- You specialise in Nigerian and African traditional foods: jollof rice, eba, egusi soup, suya, pounded yam, moi moi, akara, banga soup, oha soup, afang, ugba, abacha, ofe onugbu, pepper soup, tuwo shinkafa, miyan kuka, tuwon masara, danwake, kilishi, zobo, kunu, ogi, akamu, fufu, amala, stew with assorted meat, ofada rice, boli, roasted corn, garden egg sauce, etc.
-- Use Nigerian food composition data and typical Nigerian portion sizes (e.g. one wrap of eba, a full plate of jollof, one bowl of soup).
-- The ai_advice field: ${langInstruction} Write 2-3 sentences of warm, practical advice about this specific meal — what's good about it, what to watch out for, and a simple tip.
+- You specialise in Nigerian and African traditional foods: jollof rice, eba, egusi soup, suya, pounded yam, moi moi, akara, banga soup, oha soup, afang, ugba, abacha, ofe onugbu, pepper soup, tuwo shinkafa, miyan kuka, tuwon masara, danwake, kilishi, zobo, kunu, ogi, akamu, fufu, amala, stew with assorted meat, ofada rice, boli, roasted corn, garden egg sauce, and similar meals.
+- Recognise local names, regional dishes, common ingredient combinations, and cooking methods.
+- Use Nigerian food composition knowledge and typical Nigerian portion sizes such as one wrap of eba, a full plate of jollof, one soup bowl, one cup of pap, one medium wrap of moi moi, or one stick of suya.
+- Estimate numbers realistically. If uncertain, make a careful best estimate and keep the result useful.
+- Nutrition score is from 0 to 100, where 100 means balanced, nutrient-dense, and aligned with healthy portioning.
+- quality_assessment should mention whether the meal is balanced, oily, salty, sugary, low-fiber, protein-rich, vegetable-rich, or energy-dense where relevant.
+- processed_food_warning should be "None" when not relevant.
+- protein_adequacy should say whether the protein is low, moderate, or adequate for one meal.
+- nutrient_gap should mention the most likely missing nutrient or "No major gap noticed".
+- healthy_swaps, ingredients, and local_names must be arrays of short strings.
+- The ai_advice, quality_assessment, hydration_tip, protein_adequacy, nutrient_gap, portion_recommendation, budget_tip, and meal_suggestion fields must follow this language instruction: ${langInstruction}
 
 Return this exact JSON structure:
 {
-  "meal_name": "name of the meal in its original language (e.g. Eba with Egusi Soup, Jollof Rice, Suya)",
+  "meal_name": "name of the meal in its original language",
   "calories": number,
-  "protein": number in grams,
-  "carbs": number in grams,
-  "fat": number in grams,
-  "iron": number in mg,
-  "folate": number in mcg,
-  "zinc": number in mg,
-  "ai_advice": "advice in the requested language",
+  "protein": number,
+  "carbs": number,
+  "fat": number,
+  "fiber": number,
+  "sugar": number,
+  "sodium": number,
+  "iron": number,
+  "folate": number,
+  "zinc": number,
+  "vitamin_a": number,
+  "vitamin_c": number,
+  "calcium": number,
+  "portion_estimate": "short portion estimate",
+  "local_names": ["local or regional names"],
+  "region": "likely Nigerian region or African origin",
+  "ingredients": ["main ingredients detected or inferred"],
+  "cooking_method": "main cooking method",
+  "nutrition_score": number,
+  "quality_assessment": "short assessment",
+  "processed_food_warning": "short warning or None",
+  "hydration_tip": "short hydration guidance",
+  "protein_adequacy": "short protein assessment",
+  "nutrient_gap": "short nutrient gap insight",
+  "healthy_swaps": ["swap 1", "swap 2", "swap 3"],
+  "portion_recommendation": "short portion guidance",
+  "budget_tip": "budget-friendly local food tip",
+  "meal_suggestion": "next-meal suggestion",
+  "ai_advice": "2-3 sentences of practical advice in the requested language",
   "language": "${language}"
 }`
 
@@ -60,8 +89,16 @@ Return this exact JSON structure:
     }
   )
 
+  if (!response.ok) {
+    throw new Error('FoodDoc analysis request failed')
+  }
+
   const data = await response.json()
-  const text = data.candidates[0].content.parts[0].text
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) {
+    throw new Error('FoodDoc did not return an analysis')
+  }
+
   const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean)
+  return JSON.parse(clean) as NutritionResult
 }
