@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile, Language } from '../types/index'
+import { LogOut } from 'lucide-react'
 
 const goalLabels: Record<string, string> = {
   lose_weight: '⚖️ Lose Weight',
   gain_muscle: '💪 Gain Muscle',
   eat_healthy: '🥗 Eat Healthy',
-  manage_condition: '🏥 Manage a Condition',
+  manage_condition: '🏥 Manage Condition',
 }
 
 const LANGUAGES: { value: Language; flag: string; label: string; native: string }[] = [
@@ -39,116 +40,118 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from('profiles').upsert({ id: user.id, ...profile })
-    setSaved(true)
-    setSaving(false)
+    setSaved(true); setSaving(false)
     setTimeout(() => setSaved(false), 3000)
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-  }
+  async function handleLogout() { await supabase.auth.signOut() }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    <div className="ambient-bg min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
     </div>
   )
 
+  const firstName = profile.full_name?.split(' ')[0] || '?'
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-primary text-white px-6 pt-10 pb-8">
-        <h1 className="text-2xl font-bold">Your Profile</h1>
-        <p className="text-green-100 text-sm mt-1">Help FoodDoc personalise your advice</p>
-      </div>
+    <div className="ambient-bg min-h-screen pb-28">
+      <div className="content-layer max-w-md mx-auto px-5 pt-12 space-y-4">
 
-      <div className="max-w-md mx-auto px-6 -mt-4 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <span className="text-2xl font-bold text-primary">{firstName[0]?.toUpperCase()}</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">{profile.full_name || 'Your Profile'}</h1>
+            <p className="text-gray-400 text-sm">Personalise your FoodDoc</p>
+          </div>
+        </div>
 
-        {/* Language preference */}
-        <div className="bg-white rounded-2xl shadow-sm p-5">
-          <p className="text-sm font-semibold text-gray-700 mb-1">Preferred Language</p>
-          <p className="text-xs text-gray-400 mb-3">FoodDoc will always reply in this language</p>
+        <div className="glass rounded-2xl p-5">
+          <p className="text-sm font-semibold text-white mb-1">Preferred Language</p>
+          <p className="text-xs text-gray-500 mb-4">FoodDoc will always reply in this language</p>
           <div className="space-y-2">
             {LANGUAGES.map(lang => (
               <button
                 key={lang.value}
                 onClick={() => setProfile({ ...profile, preferred_language: lang.value })}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
                   profile.preferred_language === lang.value
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-primary'
+                    ? 'bg-primary/15 border-primary/40 shadow-glow-sm'
+                    : 'bg-white/5 border-white/10 hover:border-primary/30'
                 }`}
               >
-                <span className="text-xl">{lang.flag}</span>
+                <span className="text-lg">{lang.flag}</span>
                 <div>
-                  <p className="text-sm font-medium">{lang.label}</p>
-                  <p className={`text-xs ${profile.preferred_language === lang.value ? 'text-green-100' : 'text-gray-400'}`}>
-                    {lang.native}
+                  <p className={`text-sm font-medium ${profile.preferred_language === lang.value ? 'text-primary' : 'text-gray-200'}`}>
+                    {lang.label}
                   </p>
+                  <p className="text-xs text-gray-500">{lang.native}</p>
                 </div>
                 {profile.preferred_language === lang.value && (
-                  <span className="ml-auto text-white text-lg">✓</span>
+                  <span className="ml-auto text-primary text-sm font-bold">✓</span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Personal details */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-          <p className="text-sm font-semibold text-gray-700">Personal Details</p>
+        <div className="glass rounded-2xl p-5 space-y-4">
+          <p className="text-sm font-semibold text-white">Personal Details</p>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Full Name</label>
             <input
               type="text"
               value={profile.full_name || ''}
               onChange={e => setProfile({ ...profile, full_name: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Age</label>
               <input
                 type="number"
                 value={profile.age || ''}
                 onChange={e => setProfile({ ...profile, age: Number(e.target.value) })}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Weight (kg)</label>
               <input
                 type="number"
                 value={profile.weight || ''}
                 onChange={e => setProfile({ ...profile, weight: Number(e.target.value) })}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Height (cm)</label>
             <input
               type="number"
               value={profile.height || ''}
               onChange={e => setProfile({ ...profile, height: Number(e.target.value) })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">My Health Goal</label>
+            <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Health Goal</label>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(goalLabels).map(([value, label]) => (
                 <button
                   key={value}
                   onClick={() => setProfile({ ...profile, goal: value as Profile['goal'] })}
-                  className={`py-3 px-3 rounded-xl text-sm font-medium border transition-colors text-left ${
+                  className={`py-3 px-3 rounded-xl text-xs font-medium border transition-all text-left ${
                     profile.goal === value
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary'
+                      ? 'bg-primary/15 text-primary border-primary/40'
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:border-primary/30'
                   }`}
                 >
                   {label}
@@ -160,16 +163,17 @@ export default function ProfilePage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary-dark transition-colors disabled:opacity-60"
+            className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-glow-sm"
           >
-            {saved ? '✓ Profile Saved!' : saving ? 'Saving...' : 'Save Profile'}
+            {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Profile'}
           </button>
         </div>
 
         <button
           onClick={handleLogout}
-          className="w-full border border-red-200 text-red-500 py-3 rounded-xl font-semibold hover:bg-red-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 border border-red-500/20 text-red-400 py-3 rounded-xl font-semibold hover:bg-red-500/10 transition-colors"
         >
+          <LogOut size={16} />
           Log Out
         </button>
       </div>
