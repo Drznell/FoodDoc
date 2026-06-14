@@ -1,5 +1,7 @@
 export type Goal = 'lose_weight' | 'gain_muscle' | 'eat_healthy' | 'manage_condition'
 
+export type Language = 'english' | 'pidgin' | 'yoruba' | 'hausa' | 'igbo'
+
 export type NutritionResult = {
   meal_name: string
   calories: number
@@ -10,6 +12,7 @@ export type NutritionResult = {
   folate: number
   zinc: number
   ai_advice: string
+  language: Language
 }
 
 export type MealLog = {
@@ -26,6 +29,7 @@ export type MealLog = {
   folate: number
   zinc: number
   ai_advice: string
+  language: Language
   logged_at: string
 }
 
@@ -36,5 +40,6 @@ export type Profile = {
   weight: number
   height: number
   goal: Goal
+  preferred_language: Language
   created_at: string
 }
