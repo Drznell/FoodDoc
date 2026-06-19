@@ -10,6 +10,56 @@ const LANGUAGE_INSTRUCTIONS: Record<Language, string> = {
   igbo: 'Respond in Igbo. Mix naturally with a little English for nutrition terms if needed.',
 }
 
+function numberValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function stringValue(value: unknown, fallback = 'Not specified') {
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : []
+}
+
+function normalizeNutritionResult(data: Partial<NutritionResult>, language: Language): NutritionResult {
+  return {
+    meal_name: stringValue(data.meal_name, 'Analysed meal'),
+    calories: numberValue(data.calories),
+    protein: numberValue(data.protein),
+    carbs: numberValue(data.carbs),
+    fat: numberValue(data.fat),
+    fiber: numberValue(data.fiber),
+    sugar: numberValue(data.sugar),
+    sodium: numberValue(data.sodium),
+    iron: numberValue(data.iron),
+    folate: numberValue(data.folate),
+    zinc: numberValue(data.zinc),
+    vitamin_a: numberValue(data.vitamin_a),
+    vitamin_c: numberValue(data.vitamin_c),
+    calcium: numberValue(data.calcium),
+    portion_estimate: stringValue(data.portion_estimate, 'Estimated from the photo and description'),
+    local_names: stringArray(data.local_names),
+    region: stringValue(data.region, 'Nigeria'),
+    ingredients: stringArray(data.ingredients),
+    cooking_method: stringValue(data.cooking_method, 'Not specified'),
+    nutrition_score: numberValue(data.nutrition_score),
+    quality_assessment: stringValue(data.quality_assessment, 'FoodDoc analysed the meal, but the quality note was incomplete.'),
+    processed_food_warning: stringValue(data.processed_food_warning, 'None'),
+    hydration_tip: stringValue(data.hydration_tip, 'Drink water with this meal.'),
+    protein_adequacy: stringValue(data.protein_adequacy, 'Protein estimate is available above.'),
+    nutrient_gap: stringValue(data.nutrient_gap, 'No major gap noticed'),
+    healthy_swaps: stringArray(data.healthy_swaps),
+    portion_recommendation: stringValue(data.portion_recommendation, 'Keep the portion moderate and add vegetables where possible.'),
+    budget_tip: stringValue(data.budget_tip, 'Beans, eggs, groundnuts, and seasonal vegetables are useful affordable add-ons.'),
+    meal_suggestion: stringValue(data.meal_suggestion, 'Choose a lighter next meal with vegetables and lean protein.'),
+    ai_advice: stringValue(data.ai_advice, 'FoodDoc has analysed your meal.'),
+    language: data.language || language,
+  }
+}
+
 export async function analyseMeal(
   description: string,
   language: Language,
@@ -114,7 +164,7 @@ Return this exact JSON structure:
   }
 
   try {
-    return JSON.parse(clean.slice(jsonStart, jsonEnd + 1)) as NutritionResult
+    return normalizeNutritionResult(JSON.parse(clean.slice(jsonStart, jsonEnd + 1)), language)
   } catch {
     throw new Error('FoodDoc returned incomplete nutrition data. Please try again.')
   }
