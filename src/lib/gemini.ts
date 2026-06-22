@@ -1,3 +1,4 @@
+cat > src/lib/gemini.ts << 'ENDOFFILE'
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 export type NutritionResult = {
@@ -30,49 +31,11 @@ export async function analyseMeal(
   medicalCondition: string = 'None',
   language: string = 'English'
 ): Promise<NutritionResult> {
-  const prompt = `You are FoodDoc, an elite Nigerian Nutrition AI and certified dietitian specialising in traditional Nigerian foods (jollof rice, eba, egusi soup, suya, pounded yam, moi moi, akara, pepper soup, amala, ewedu, gbegiri, banga, afang, edikang ikong, tuwo shinkafa, masa, okra soup, yam porridge, etc).
-
-Analyse this meal: "${description}"
-
-Medical context to tailor advice for (if any): ${medicalCondition}
-Respond in this language style: ${language}
-
-Return ONLY a raw JSON object, no markdown, no explanation, exactly this structure:
-{
-  "meal_name": "standard English name",
-  "local_names": "Nigerian/local name(s) if applicable",
-  "portion_size": "description of portion e.g. 1 medium plate",
-  "calories": number,
-  "protein": number in grams,
-  "carbs": number in grams,
-  "fat": number in grams,
-  "sodium": number in mg,
-  "sugar": number in grams,
-  "fiber": number in grams,
-  "iron": number in mg,
-  "calcium": number in mg,
-  "folate": number in mcg,
-  "zinc": number in mg,
-  "vitamin_a": number in mcg,
-  "ingredients": ["ingredient1", "ingredient2"],
-  "cooking_method": "e.g. deep-fried, boiled, steamed",
-  "health_rating": number from 1 to 10,
-  "processed_food": boolean,
-  "ai_advice": "2-3 sentences of practical, friendly Nigerian nutrition advice, tailored to the medical condition if one is given",
-  "smart_recommendations": ["tip1", "tip2"]
-}
-
-Be accurate using real Nigerian food composition data.`
+  const prompt = `You are FoodDoc, an elite Nigerian Nutrition AI specialising in traditional Nigerian foods. Analyse this meal: "${description}". Medical context: ${medicalCondition}. Respond in: ${language}. Return ONLY raw JSON, no markdown: {"meal_name":"","local_names":"","portion_size":"","calories":0,"protein":0,"carbs":0,"fat":0,"sodium":0,"sugar":0,"fiber":0,"iron":0,"calcium":0,"folate":0,"zinc":0,"vitamin_a":0,"ingredients":[],"cooking_method":"","health_rating":0,"processed_food":false,"ai_advice":"","smart_recommendations":[]}`
 
   const parts: object[] = [{ text: prompt }]
-
   if (imageBase64) {
-    parts.push({
-      inline_data: {
-        mime_type: 'image/jpeg',
-        data: imageBase64,
-      },
-    })
+    parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } })
   }
 
   const response = await fetch(
@@ -80,38 +43,20 @@ Be accurate using real Nigerian food composition data.`
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048,
-        },
-      }),
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.3, maxOutputTokens: 2048 } }),
     }
   )
 
   if (!response.ok) {
-    const errorData = await response.json()
-    console.error('Gemini API error:', errorData)
+    const err = await response.json()
+    console.error('Gemini error:', err)
     throw new Error(`Gemini API error: ${response.status}`)
   }
 
   const data = await response.json()
-
-  if (!data.candidates || data.candidates.length === 0) {
-    console.error('No candidates in response:', data)
-    throw new Error('No response from AI')
-  }
-
   const text = data.candidates[0].content.parts[0].text
   const clean = text.replace(/```json|```/g, '').trim()
-
-  try {
-    return JSON.parse(clean)
-  } catch {
-    console.error('Failed to parse AI response:', clean)
-    throw new Error('Could not parse AI response')
-  }
+  return JSON.parse(clean)
 }
 
 export async function chatWithDietitian(
@@ -120,19 +65,7 @@ export async function chatWithDietitian(
   goal: string = 'Maintenance',
   language: string = 'English'
 ): Promise<string> {
-  const systemPrompt = `You are "Mumi Naija", a warm, trusted, certified Nigerian Dietitian and Wellness Coach.
-
-User profile:
-- Goal: ${goal}
-- Medical condition: ${medicalCondition}
-- Preferred language: ${language}
-
-Your style:
-- Use Nigerian foods as examples: beans, roast plantain, boiled egg, ugu, shoko, okazi, utazi.
-- Give practical, budget-friendly, market-realistic advice (local catfish over imported fish, local rice, groundnut oil in moderation).
-- If language is Yoruba, Igbo, Hausa, or Pidgin, speak naturally with common expressions to build trust.
-- For serious medical concerns (kidney/liver failure, severe anemia), gently recommend visiting a certified clinic alongside your advice.
-- Keep responses concise and use markdown formatting for readability.`
+  const systemPrompt = `You are "Mumi Naija", a warm certified Nigerian Dietitian. User goal: ${goal}. Medical condition: ${medicalCondition}. Language: ${language}. Use Nigerian foods as examples. Give practical budget-friendly advice.`
 
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -144,75 +77,34 @@ Your style:
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-      }),
+      body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 1024 } }),
     }
   )
 
-  if (!response.ok) {
-    const errorData = await response.json()
-    console.error('Gemini chat error:', errorData)
-    throw new Error(`Gemini API error: ${response.status}`)
-  }
-
+  if (!response.ok) throw new Error(`Gemini API error: ${response.status}`)
   const data = await response.json()
   return data.candidates[0].content.parts[0].text
 }
 
 export async function generateRecipe(
   request: string,
-  ingredients: string[] = [],
   goal: string = 'Healthy Eating',
   language: string = 'English'
 ) {
-  const prompt = `Generate a traditional, healthy, localized Nigerian recipe based on:
-- Request: "${request}"
-- Available ingredients: ${ingredients.length ? ingredients.join(', ') : 'None specified, suggest standard traditional ones'}
-- Health goal: ${goal}
-- Language: ${language}
-
-Suggest affordable protein swaps and tips for reducing sodium or palm oil.
-
-Return ONLY raw JSON, no markdown:
-{
-  "title": "dish name",
-  "local_names": "native/slang name",
-  "description": "short appealing description",
-  "prep_time": "e.g. 15 mins",
-  "cook_time": "e.g. 40 mins",
-  "calories": number,
-  "carbs": number,
-  "protein": number,
-  "fat": number,
-  "ingredients": [{"name": "ingredient", "quantity": "amount", "budget_swap": "cheaper alternative"}],
-  "instructions": ["step 1", "step 2"],
-  "health_benefits": "health commentary",
-  "budget_friendly_tips": "where/how to source cheaply"
-}`
+  const prompt = `Generate a traditional Nigerian recipe for: "${request}". Goal: ${goal}. Language: ${language}. Return ONLY raw JSON: {"title":"","local_names":"","description":"","prep_time":"","cook_time":"","calories":0,"carbs":0,"protein":0,"fat":0,"ingredients":[{"name":"","quantity":"","budget_swap":""}],"instructions":[],"health_benefits":"","budget_friendly_tips":""}`
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 2048 },
-      }),
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }),
     }
   )
 
-  if (!response.ok) {
-    const errorData = await response.json()
-    console.error('Gemini recipe error:', errorData)
-    throw new Error(`Gemini API error: ${response.status}`)
-  }
-
+  if (!response.ok) throw new Error(`Gemini API error: ${response.status}`)
   const data = await response.json()
   const text = data.candidates[0].content.parts[0].text
-  const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean)
+  return JSON.parse(text.replace(/```json|```/g, '').trim())
 }
+ENDOFFILE
